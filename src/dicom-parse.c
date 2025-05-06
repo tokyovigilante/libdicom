@@ -1038,7 +1038,22 @@ char *dcm_parse_frame(DcmError **error,
             return NULL;
         }
     } else {
-        *length = desc->rows * desc->columns * desc->samples_per_pixel;
+        if (desc->bits_allocated == 1) {
+            dcm_error_set(error, DCM_ERROR_CODE_PARSE,
+                          "reading frame item failed",
+                          "1-bit pixel storage (Bits Allocated == 1) not supported");
+            return NULL;
+        }
+        uint64_t bits_allocated = (uint64_t)desc->rows *
+                                  (uint64_t)desc->columns *
+                                  (uint64_t)desc->bits_allocated *
+                                  (uint64_t)desc->samples_per_pixel;
+        uint64_t frame_bytes_allocated = bits_allocated / 8;
+        // Pixel data length must be even
+        if (frame_bytes_allocated % 2 != 0) {
+            frame_bytes_allocated++;
+        }
+        *length = (uint32_t)frame_bytes_allocated;
     }
 
     char *value = DCM_MALLOC(error, *length);

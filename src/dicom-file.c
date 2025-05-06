@@ -1297,11 +1297,19 @@ bool dcm_filehandle_prepare_read_frame(DcmError **error,
                     return false;
                 }
             } else {
+                if (filehandle->desc.bits_allocated == 1) {
+                    dcm_error_set(error, DCM_ERROR_CODE_PARSE,
+                                  "reading frame item failed",
+                                  "1-bit pixel storage (Bits Allocated == 1) not supported");
+                    return false;
+                }
                 for (uint32_t i = 0; i < filehandle->num_frames; i++) {
-                    filehandle->offset_table[i] = i *
-                                                  filehandle->desc.rows *
-                                                  filehandle->desc.columns *
-                                                  filehandle->desc.samples_per_pixel;
+                    int64_t bits_allocated = (int64_t)filehandle->desc.rows *
+                                             (int64_t)filehandle->desc.columns *
+                                             (int64_t)filehandle->desc.bits_allocated *
+                                             (int64_t)filehandle->desc.samples_per_pixel;
+                    int64_t frame_bytes_allocated = bits_allocated / 8;
+                    filehandle->offset_table[i] = i * frame_bytes_allocated;
                 }
 
                 filehandle->first_frame_offset = 12;
